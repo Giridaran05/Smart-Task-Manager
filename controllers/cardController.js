@@ -1,47 +1,40 @@
 const Card = require("../models/Card");
 
-
-// ===============================
-// CREATE CARD
-// ===============================
+/* ===============================
+   Create Card
+================================= */
 exports.createCard = async (req, res) => {
   try {
-    const { title, description, listId, priority, dueDate } = req.body;
+    const { title, listId, priority, dueDate, description } = req.body;
 
-    if (!title || !listId) {
-      return res.status(400).json({ message: "Title and listId required" });
-    }
-
-    const lastCard = await Card.findOne({ listId })
-      .sort({ position: -1 });
-
-    const newCard = new Card({
+    const card = await Card.create({
       title,
-      description,
       listId,
       priority,
       dueDate,
-      position: lastCard ? lastCard.position + 1 : 0,
-      activityLog: [{ action: "Card created" }]
+      description,
     });
 
-    await newCard.save();
-    res.status(201).json(newCard);
+    card.activityLog.push({
+      action: `Card created`,
+    });
 
+    await card.save();
+
+    res.status(201).json(card);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-
-
-// ===============================
-// GET CARDS BY LIST
-// ===============================
+/* ===============================
+   Get Cards by List
+================================= */
 exports.getCardsByList = async (req, res) => {
   try {
-    const cards = await Card.find({ listId: req.params.listId })
-      .sort({ position: 1 });
+    const cards = await Card.find({
+      listId: req.params.listId,
+    }).sort({ order: 1 });
 
     res.json(cards);
   } catch (error) {
@@ -49,143 +42,111 @@ exports.getCardsByList = async (req, res) => {
   }
 };
 
-
-
-// ===============================
-// UPDATE CARD
-// ===============================
+/* ===============================
+   Update Card (Drag / Edit)
+================================= */
 exports.updateCard = async (req, res) => {
   try {
     const card = await Card.findById(req.params.id);
 
-    if (!card) {
+    if (!card)
       return res.status(404).json({ message: "Card not found" });
+
+    if (req.body.listId && req.body.listId !== card.listId.toString()) {
+      card.activityLog.push({
+        action: `Moved to another list`,
+      });
+    }
+
+    if (req.body.priority && req.body.priority !== card.priority) {
+      card.activityLog.push({
+        action: `Priority changed to ${req.body.priority}`,
+      });
+    }
+
+    if (req.body.dueDate) {
+      card.activityLog.push({
+        action: `Due date updated`,
+      });
     }
 
     Object.assign(card, req.body);
 
-    card.activityLog.push({ action: "Card updated" });
-
     await card.save();
-    res.json(card);
 
+    res.json(card);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-
-
-// ===============================
-// DELETE CARD
-// ===============================
+/* ===============================
+   Delete Card
+================================= */
 exports.deleteCard = async (req, res) => {
   try {
     const card = await Card.findById(req.params.id);
 
-    if (!card) {
+    if (!card)
       return res.status(404).json({ message: "Card not found" });
-    }
 
     await card.deleteOne();
+
     res.json({ message: "Card deleted successfully" });
-
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-
-
-// ===============================
-// REORDER CARDS (Same List)
-// ===============================
-exports.reorderCards = async (req, res) => {
+/* ===============================
+   Add Comment
+================================= */
+exports.addComment = async (req, res) => {
   try {
-    const { orderedIds } = req.body;
+    const card = await Card.findById(req.params.id);
 
-    if (!orderedIds || !orderedIds.length) {
-      return res.status(400).json({ message: "orderedIds required" });
-    }
+    const newComment = {
+      user: req.body.user || "User",
+      text: req.body.text,
+    };
 
-    const bulkOps = orderedIds.map((id, index) => ({
-      updateOne: {
-        filter: { _id: id },
-        update: { position: index }
-      }
-    }));
+    card.comments.push(newComment);
 
-    await Card.bulkWrite(bulkOps);
+    card.activityLog.push({
+      action: `Comment added: "${req.body.text}"`,
+    });
 
-    res.json({ message: "Cards reordered successfully" });
+    await card.save();
 
+    res.json(card);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-
-
-// ===============================
-// MOVE CARD BETWEEN LISTS
-// ===============================
-exports.moveCard = async (req, res) => {
+/* ===============================
+   Delete Comment
+================================= */
+exports.deleteComment = async (req, res) => {
   try {
-    const { cardId, targetListId } = req.body;
-
-    if (!cardId || !targetListId) {
-      return res.status(400).json({ message: "cardId and targetListId required" });
-    }
+    const { cardId, commentId } = req.params;
 
     const card = await Card.findById(cardId);
 
-    if (!card) {
-      return res.status(404).json({ message: "Card not found" });
-    }
+    const comment = card.comments.id(commentId);
 
-    const lastCard = await Card.findOne({ listId: targetListId })
-      .sort({ position: -1 });
+    if (!comment)
+      return res.status(404).json({ message: "Comment not found" });
 
-    card.listId = targetListId;
-    card.position = lastCard ? lastCard.position + 1 : 0;
+    card.activityLog.push({
+      action: `Comment deleted`,
+    });
 
-    card.activityLog.push({ action: "Card moved to another list" });
-
-    await card.save();
-
-    res.json(card);
-
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-
-
-// ===============================
-// ADD COMMENT
-// ===============================
-exports.addComment = async (req, res) => {
-  try {
-    const { text, user } = req.body;
-
-    if (!text || !user) {
-      return res.status(400).json({ message: "text and user required" });
-    }
-
-    const card = await Card.findById(req.params.id);
-
-    if (!card) {
-      return res.status(404).json({ message: "Card not found" });
-    }
-
-    card.comments.push({ text, user });
-    card.activityLog.push({ action: "Comment added" });
+    comment.deleteOne();
 
     await card.save();
 
     res.json(card);
-
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

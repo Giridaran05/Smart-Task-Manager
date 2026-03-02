@@ -24,13 +24,14 @@ const boardRoutes = require("./routes/boardRoutes");
 const listRoutes = require("./routes/listRoutes");
 const cardRoutes = require("./routes/cardRoutes");
 const workspaceRoutes = require("./routes/workspaceRoutes");
+const activityRoutes = require("./routes/activityRoutes");
 
 // Route Usage
 app.use("/api/boards", boardRoutes);
 app.use("/api/lists", listRoutes);
 app.use("/api/cards", cardRoutes);
 app.use("/api/workspaces", workspaceRoutes);
-
+app.use("/api/activity", activityRoutes);
 // ===== Global Error Handler =====
 app.use((err, req, res, next) => {
   console.error(err.stack);

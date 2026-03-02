@@ -1,8 +1,24 @@
 const Board = require("../models/Board");
+const List = require("../models/List"); // IMPORTANT
 
 exports.createBoard = async (req, res) => {
   try {
-    const board = await Board.create(req.body);
+    // 1️⃣ Create Board
+    const board = await Board.create({
+      title: req.body.title,
+    });
+
+    // 2️⃣ Create Default Lists
+    const defaultLists = ["To Do", "In Progress", "Done"];
+
+    for (let i = 0; i < defaultLists.length; i++) {
+      await List.create({
+        title: defaultLists[i],
+        boardId: board._id,
+        position: i,
+      });
+    }
+
     res.status(201).json(board);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -11,7 +27,7 @@ exports.createBoard = async (req, res) => {
 
 exports.getBoards = async (req, res) => {
   try {
-    const boards = await Board.find();
+    const boards = await Board.find().sort({ createdAt: -1 });
     res.json(boards);
   } catch (error) {
     res.status(500).json({ message: error.message });
