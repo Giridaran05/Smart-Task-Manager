@@ -2,27 +2,28 @@ const List = require("../models/List");
 
 
 // 🔹 Create List
+
 exports.createList = async (req, res) => {
   try {
     const { title, boardId } = req.body;
 
-    const lastList = await List.findOne({ boardId })
-      .sort({ position: -1 });
+    if (!title || !boardId) {
+      return res.status(400).json({ message: "Missing fields" });
+    }
 
-    const newList = new List({
+    const listCount = await List.countDocuments({ board: boardId });
+
+    const newList = await List.create({
       title,
-      boardId,
-      position: lastList ? lastList.position + 1 : 0
+      board: boardId,
+      position: listCount
     });
 
-    await newList.save();
     res.status(201).json(newList);
-
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
-
 
 // 🔹 Get Lists By Board
 exports.getListsByBoard = async (req, res) => {
