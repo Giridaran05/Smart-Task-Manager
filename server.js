@@ -4,43 +4,33 @@ const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 
 dotenv.config();
-
-// Connect Database
 connectDB();
 
 const app = express();
 
-// ===== Middleware =====
-app.use(cors());
+// 🔥 IMPORTANT FIX
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://heroic-licorice-ed4a16.netlify.app"
+    ],
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
-// ===== Routes =====
 app.get("/", (req, res) => {
   res.send("Smart Task Manager API Running 🚀");
 });
 
-// Route Imports
-const boardRoutes = require("./routes/boardRoutes");
-const listRoutes = require("./routes/listRoutes");
-const cardRoutes = require("./routes/cardRoutes");
-const workspaceRoutes = require("./routes/workspaceRoutes");
-const activityRoutes = require("./routes/activityRoutes");
+app.use("/api/boards", require("./routes/boardRoutes"));
+app.use("/api/lists", require("./routes/listRoutes"));
+app.use("/api/cards", require("./routes/cardRoutes"));
+app.use("/api/workspaces", require("./routes/workspaceRoutes"));
+app.use("/api/activity", require("./routes/activityRoutes"));
 
-// Route Usage
-app.use("/api/boards", boardRoutes);
-app.use("/api/lists", listRoutes);
-app.use("/api/cards", cardRoutes);
-app.use("/api/workspaces", workspaceRoutes);
-app.use("/api/activity", activityRoutes);
-// ===== Global Error Handler =====
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    message: "Something went wrong!",
-  });
-});
-
-// ===== Server Start =====
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
