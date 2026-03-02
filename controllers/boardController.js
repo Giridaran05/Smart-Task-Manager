@@ -33,3 +33,18 @@ exports.getBoards = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+exports.getBoardById = async (req, res) => {
+  try {
+    const board = await Board.findById(req.params.id);
+
+    if (!board) {
+      return res.status(404).json({ message: "Board not found" });
+    }
+
+    res.json(board);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
